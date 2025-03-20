@@ -62,7 +62,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # API URL
-API_URL = "http://13.61.17.106:8000/process-image/"
+API_URL = "http://13.48.67.116:8000/process-image/"
 
 # App title
 st.markdown("<div class='main-header'>Mosaic Art Image Processor</div>", unsafe_allow_html=True)
