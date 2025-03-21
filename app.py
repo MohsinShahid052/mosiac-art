@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import requests
 from PIL import Image
@@ -13,58 +15,134 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling with automatic dark/light theme detection
 st.markdown("""
 <style>
+    /* Base theme variables */
+    :root {
+      --background-color: #ffffff;
+      --text-color: #222222;
+      --header-color: #222222;
+      --card-background: #ffffff;
+      --card-border: #dee2e6;
+      --info-background: #F8F9FA;
+      --info-border: #90caf9;
+      --upload-background: rgba(0, 0, 0, 0.8);
+      --upload-border: #dee2e6;
+      --upload-text: white;
+      --button-background: #007bff;
+      --button-text: white;
+      --debug-background: #f1f1f1;
+      --debug-text: #333333;
+      --image-container-background: white;
+      --image-container-text: black;
+    }
+    
+    /* Dark theme override */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background-color: #121212;
+        --text-color: #f1f1f1;
+        --header-color: #ffffff;
+        --card-background: #1e1e1e;
+        --card-border: #444444;
+        --info-background: #2d2d2d;
+        --info-border: #3a6ea5;
+        --upload-background: rgba(40, 40, 40, 0.9);
+        --upload-border: #555555;
+        --upload-text: #f1f1f1;
+        --button-background: #0066cc;
+        --button-text: white;
+        --debug-background: #2d2d2d;
+        --debug-text: #e0e0e0;
+        --image-container-background: #2d2d2d;
+        --image-container-text: #f1f1f1;
+      }
+    }
+    
+    /* Apply the variables to elements */
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
         text-align: center;
         margin-bottom: 1rem;
-        color: white;
+        color: var(--header-color);
     }
     .sub-header {
         font-size: 1.5rem;
         font-weight: bold;
         margin-top: 1rem;
         margin-bottom: 0.5rem;
+        color: var(--header-color);
     }
     .upload-section {
         padding: 2rem;
         border-radius: 0.7rem;
-        background-color: black;
-        border: 2px dashed #dee2e6;
+        background-color: var(--upload-background);
+        border: 2px dashed var(--upload-border);
         margin-bottom: 2rem;
-        text: white;    
+        color: var(--upload-text);
     }
     .info-box {
         padding: 1rem;
         border-radius: 0.5rem;
-        background-color: black;
-        border: 1px solid #90caf9;
+        background-color: var(--info-background);
+        border: 1px solid var(--info-border);
         margin-bottom: 1rem;
-    
+        color: var(--text-color);
     }
     .download-btn {
         width: 100%;
         margin-bottom: 0.5rem;
+        background-color: var(--button-background);
+        color: var(--button-text);
+        text-decoration: none;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        display: block;
     }
     .image-container {
-        border: 1px solid #ddd;
+        border: 1px solid var(--card-border);
         border-radius: 0.5rem;
         padding: 1rem;
-        background-color: white;
+        background-color: var(--image-container-background);
+        color: var(--image-container-text);
     }
     .stButton button {
         width: 100%;
+        background-color: var(--button-background);
+        color: var(--button-text);
     }
     .debug-box {
-        background-color: #black;
-        border: 1px solid #ddd;
+        background-color: var(--debug-background);
+        border: 1px solid var(--card-border);
         border-radius: 0.5rem;
         padding: 1rem;
         margin-top: 1rem;
         overflow-x: auto;
+        color: var(--debug-text);
+    }
+    
+    /* Override some Streamlit elements to match theme */
+    .stApp {
+        background-color: var(--background-color);
+        color: var(--text-color);
+    }
+    
+    .stMarkdown, .stText {
+        color: var(--text-color);
+    }
+    
+    /* File uploader styling */
+    .st-dd {
+        background-color: var(--upload-background);
+        color: var(--upload-text);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: var(--card-background);
     }
 </style>
 """, unsafe_allow_html=True)
