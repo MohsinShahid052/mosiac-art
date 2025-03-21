@@ -58,6 +58,14 @@ st.markdown("""
     .stButton button {
         width: 100%;
     }
+    .debug-box {
+        background-color: #black;
+        border: 1px solid #ddd;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-top: 1rem;
+        overflow-x: auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,6 +95,10 @@ if 'processed' not in st.session_state:
     st.session_state.original_image = None
     st.session_state.processed_image = None
     st.session_state.svg_data = None
+    st.session_state.debug_info = None
+
+# Debug section toggle
+show_debug = st.sidebar.checkbox("Show Debug Information", value=False)
 
 # Upload section
 st.markdown("<div class='sub-header'>Upload Image</div>", unsafe_allow_html=True)
@@ -114,29 +126,96 @@ if uploaded_file is not None:
             # Send request to the API
             response = requests.post(API_URL, files=files)
             
+            # Store debug information
+            debug_info = {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "content_type": response.headers.get('content-type', 'Not specified'),
+                "content_length": len(response.content),
+                "first_bytes": ', '.join([f'{b:02x}' for b in response.content[:20]]) if response.content else 'Empty',
+                "text_preview": response.text[:500] if hasattr(response, 'text') else 'No text content'
+            }
+            st.session_state.debug_info = debug_info
+            
             if response.status_code == 200:
-                # Process successful, display the result
-                processed_image = Image.open(io.BytesIO(response.content))
-                
-                # Save processed image to session state
-                st.session_state.processed_image = processed_image
-                st.session_state.processed = True
-                
-                # Try to get SVG version
                 try:
-                    svg_response = requests.post(f"{API_URL}?format=svg", files=files)
-                    if svg_response.status_code == 200:
-                        st.session_state.svg_data = svg_response.text
-                except Exception as e:
-                    st.error(f"Could not get SVG version: {e}")
-                    st.session_state.svg_data = None
+                    # Check if content type is an image
+                    content_type = response.headers.get('content-type', '')
+                    
+                    if content_type and 'image' in content_type:
+                        # It's an image, try to open it
+                        processed_image = Image.open(io.BytesIO(response.content))
+                        st.session_state.processed_image = processed_image
+                        st.session_state.processed = True
+                    else:
+                        # Try to open it anyway as different image formats
+                        try:
+                            for format_ext in ['JPEG', 'PNG', 'GIF']:
+                                try:
+                                    processed_image = Image.open(io.BytesIO(response.content), formats=[format_ext])
+                                    st.session_state.processed_image = processed_image
+                                    st.session_state.processed = True
+                                    break
+                                except:
+                                    continue
+                            
+                            # If we still don't have a processed image, raise an exception
+                            if not st.session_state.processed:
+                                raise Exception("Content is not recognized as an image")
+                        except Exception as img_error:
+                            st.error(f"Could not process response as an image: {img_error}")
+                            st.session_state.processed = False
+                    
+                    # Try to get SVG version if processing succeeded
+                    if st.session_state.processed:
+                        try:
+                            svg_response = requests.post(f"{API_URL}?format=svg", files=files)
+                            if svg_response.status_code == 200:
+                                st.session_state.svg_data = svg_response.text
+                        except Exception as e:
+                            if show_debug:
+                                st.warning(f"Could not get SVG version: {e}")
+                            st.session_state.svg_data = None
                 
+                except Exception as e:
+                    st.error(f"Error processing the response: {e}")
+                    st.session_state.processed = False
             else:
                 st.error(f"Error: API returned status code {response.status_code}")
                 st.session_state.processed = False
         except Exception as e:
             st.error(f"Error connecting to the API: {e}")
             st.session_state.processed = False
+
+# Display debug information if requested
+if show_debug and st.session_state.debug_info:
+    st.markdown("<div class='sub-header'>Debug Information</div>", unsafe_allow_html=True)
+    with st.expander("API Response Details", expanded=True):
+        debug = st.session_state.debug_info
+        st.markdown(f"""
+        <div class='debug-box'>
+        <p><strong>Status Code:</strong> {debug['status_code']}</p>
+        <p><strong>Content Type:</strong> {debug['content_type']}</p>
+        <p><strong>Content Length:</strong> {debug['content_length']} bytes</p>
+        <p><strong>First Bytes (hex):</strong> {debug['first_bytes']}</p>
+        <p><strong>Headers:</strong></p>
+        <pre>{debug['headers']}</pre>
+        <p><strong>Content Preview:</strong></p>
+        <pre>{debug['text_preview']}</pre>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Option to save raw response for offline analysis
+        if st.button("Save Raw Response to File"):
+            try:
+                # Create a debug directory if it doesn't exist
+                os.makedirs("debug", exist_ok=True)
+                # Save the raw response
+                with open(f"debug/response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bin", "wb") as f:
+                    f.write(response.content)
+                st.success("Raw response saved to debug folder")
+            except Exception as e:
+                st.error(f"Error saving response: {e}")
 
 # Display results if processing is complete
 if st.session_state.processed:
